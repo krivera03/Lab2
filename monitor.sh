@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # R1.Argumentos 
-if [$# -lt 1 ]; then
+if [ $# -lt 1 ]; then
 	echo "Uso $0 \"comando\" [intervalo]"
 	exit 1
 fi
@@ -10,7 +10,7 @@ COMANDO="$1"
 INTERVALO=${2:-2}
 
 # R2.Ejecucion del proceso
-bash -c "$COMANDO"&
+eval "$COMANDO" &
 PID=$!
 
 LOG="monitor_${PID}.log"
@@ -24,25 +24,25 @@ terminar() {
 	exit 0
 }
 
-trap termiar SIGINT
+trap terminar SIGINT
 
 # R3. Registro periodico
 INICIO=$(date +%s)
 
 while kill -0 $PID 2>/dev/null; do
-	TIMESTAMP=$(date "+%Y-%m-%d %H:%M:%S")
+	TIEMPO=$(($(date +%s) - INICIO))
 
-	# ps =awk
-	ps -p $PID -o %cpu,%mem,rss --no headers | awk -v t="$TIMESTAMP" '{print t, $1, $2, $3}' >> "$LOG"
-	
+	ps -p $PID -o %cpu,%mem,rss --no-headers | \
+	awk -v t="$TIEMPO" '{print t, $1, $2, $3}' >> "$LOG"
+
 	sleep $INTERVALO
 done
 
 # R5.Graficacion
-graficar()
-
+graficar() {
 	OUTPUT="monitor_${PID}.png"
-	
+	echo "Generando grafica..."
+
 	gnuplot <<EOF
 set terminal png size 800,600
 set output "$OUTPUT"
@@ -51,19 +51,19 @@ set title "Proceso: $COMANDO (PID $PID)"
 set xlabel "Tiempo (s)"
 
 set ylabel "CPU (%)"
-set ylabel1 "RSS (KB)"
+set y2label "RSS (KB)"
 set y2tics
 set grid
 
 # convertir timestamp a segundos
-plt \
-	"< awk '{ cmd = \"date -d \\\"\" \$1 \" \" \$2 \"\\\" +%s\"; cmd | getline t; close(cmd); print t-$INICIO, \$3, \$5 }' $LOG" using 1:2 with lines title "CPU (%)", \
-	"< awk '{ cmd = \"date -d \\\"\" \$1 \" \" \$2 \"\\\" +%s\"; cmd | getline t; close(cmd); print t-$INICIO, \$3, \$5 }' $LOG" using 1:3 axes x1y2 with lines title "RSS (KB)"
+plot \
+	"$LOG" using 1:2 with lines title "CPU (%)", \
+	"$LOG" using 1:4 axes x1y2 with lines title "RSS (KB)"
 EOF
 
 	echo "Gráfica generada: $OUTPUT"
 }
 
 wait $PID
-graficar"< awk '{ cmd= \"date -d \\\"\" \$1 \" \" \$2
+graficar
 
