@@ -1,0 +1,11 @@
+[Unit]
+Description=Servicio de monitoreo del sistema
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/monitor_servicio.sh
+Restart=on-failure
+User=monitor
+
+[Install]
+WantedBy=multi-use.target
